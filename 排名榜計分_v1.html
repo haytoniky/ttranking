@@ -1,0 +1,141 @@
+
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset='utf-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1' />
+<title>排名榜計分</title>
+<style>
+:root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --accent:#22c55e; --warn:#ef4444; --muted:#9ca3af; }
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans CJK TC','PingFang TC','Microsoft JhengHei',Arial,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;background:rgba(17,24,39,.85);backdrop-filter:saturate(180%) blur(6px);border-bottom:1px solid #1f2937;z-index:1000}
+.header-inner{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,#22c55e,#06b6d4)}
+.title{font-size:18px;font-weight:600}
+.container{max-width:1100px;margin:24px auto;padding:0 16px}
+section{background:var(--card);border:1px solid #1f2937;border-radius:12px;padding:12px;margin-bottom:16px}
+section h2{margin:0 0 8px;font-size:16px;color:var(--accent)}
+.table-wrap{overflow-x:auto;margin-bottom:12px}
+.data-table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0 6px}
+.data-table th,.data-table td{padding:10px 14px;border-bottom:1px solid #1f2937;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 移除 sticky，表頭不固定 */
+.data-table thead th{background:#0b1220;color:var(--text)}
+.data-table tbody tr{background:#0e1626;border:1px solid #1f2937}
+.data-table tbody tr:hover{background:#0b1220}
+.col-A{min-width:120px}
+.col-B{min-width:120px}
+.col-C{min-width:100px}
+.col-D{min-width:380px}
+.col-J{min-width:240px}
+.col-K{min-width:120px}
+.col-action{min-width:140px}
+.cell-input,.cell-select{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #374151;background:#0b1220;color:var(--text)}
+.cell-input:invalid{border-color:var(--warn)}
+.k-badge{display:inline-block;padding:2px 8px;border-radius:6px;background:#083b2a;color:#a7f3d0;border:1px solid #065f46;font-size:12px}
+.del-btn{background:#7f1d1d;border-color:#991b1b}
+.del-btn:hover{border-color:#ef4444;color:#ef4444}
+.controls{display:flex;gap:8px;align-items:center;background:#0e1626;border:1px solid #1f2937;border-radius:8px;padding:8px 12px}
+button{background:#1f2937;color:var(--text);border:1px solid #374151;border-radius:8px;padding:8px 12px;font-size:14px}
+button:hover{border-color:var(--accent);color:var(--accent)}
+.summary{margin-left:auto;color:var(--text);font-size:14px}
+.summary .value{color:#a7f3d0;background:#064e3b;border:1px solid #065f46;padding:2px 8px;border-radius:6px}
+.footer{color:var(--muted);text-align:center;padding:14px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class='header-inner'>
+    <div class='logo'></div>
+    <div class='title'>排名榜計分</div>
+  </div>
+</header>
+<div class='container'>
+  <section>
+    <h2>乒總計分</h2>
+    <!-- 表格（表頭非 sticky） -->
+    <div class='table-wrap'>
+      <table class='data-table'>
+        <thead>
+          <tr>
+            <th class='col-A'>A — SCORE 1</th>
+            <th class='col-B'>B — SCORE 2</th>
+            <th class='col-C'>C — 分差</th>
+            <th class='col-D'>D — 當（情境）</th>
+            <th class='col-J'>J — 等級</th>
+            <th class='col-K'>K — 得分</th>
+            <th class='col-action'>操作</th>
+          </tr>
+        </thead>
+        <tbody id='tbody'></tbody>
+      </table>
+    </div>
+
+    <!-- 操作列（在表格下方） -->
+    <div class='controls'>
+      <button id='addRowBtn' onclick='addRow()'>＋ 新增一列</button>
+      <div class='summary'>總得分：<span id='total-k' class='value'>0.0</span></div>
+    </div>
+  </section>
+</div>
+<script>
+const OPT_D = ['積分高的球員獲勝時(勝方得分)', '積分高的球員獲勝時(負方失分)', '積分低的球員獲勝時(勝方得分)', '積分低的球員獲勝時(負方失分)'];
+const OPT_J = ['甲', '乙', '丙', '丁'];
+const MULTIPLIER = {'甲': 4, '乙': 2, '丙': 1, '丁': 0.5};
+
+function baseScore(dLabel, diff) {
+  if (isNaN(diff)) return NaN;
+  if (dLabel === OPT_D[0]) {
+    if (diff <= 25) return 9; if (diff <= 50) return 8; if (diff <= 100) return 7; if (diff <= 150) return 6; if (diff <= 200) return 5; if (diff <= 300) return 4; if (diff <= 400) return 3; if (diff <= 500) return 2; if (diff <= 750) return 1; return 0;
+  } else if (dLabel === OPT_D[1]) {
+    if (diff <= 25) return -4.5; if (diff <= 50) return -4; if (diff <= 100) return -3.5; if (diff <= 150) return -3; if (diff <= 200) return -2.5; if (diff <= 300) return -2; if (diff <= 400) return -1.5; if (diff <= 500) return -1; if (diff <= 750) return -0.5; return 0;
+  } else if (dLabel === OPT_D[2]) {
+    if (diff <= 24) return 10; if (diff <= 49) return 12; if (diff <= 99) return 14; if (diff <= 149) return 16; if (diff <= 199) return 20; if (diff <= 299) return 24; if (diff <= 399) return 28; if (diff <= 499) return 32; if (diff <= 749) return 36; return 40;
+  } else {
+    if (diff <= 24) return -5; if (diff <= 49) return -6; if (diff <= 99) return -7; if (diff <= 149) return -8; if (diff <= 199) return -10; if (diff <= 299) return -12; if (diff <= 399) return -14; if (diff <= 499) return -16; if (diff <= 749) return -18; return -20;
+  }
+}
+
+function clampInt(v, min, max) { let x = parseFloat(v); if (Number.isNaN(x)) return ''; x = Math.round(x); if (x < min) x = min; if (x > max) x = max; return String(x); }
+function updateTotal() { const spans = document.querySelectorAll('.col-K .k-badge'); let sum = 0; spans.forEach(s => { const v = parseFloat(s.textContent); if (!Number.isNaN(v)) sum += v; }); document.getElementById('total-k').textContent = sum.toFixed(1); }
+
+let nextId = 1;
+function makeRow(id) {
+  const tr = document.createElement('tr'); tr.dataset.id = id;
+  tr.innerHTML = `
+    <td class='col-A'><input type="number" class="cell-input" data-id="${id}" data-col="A" step="1" min="0" max="10000" inputmode="numeric" /></td>
+    <td class='col-B'><input type="number" class="cell-input" data-id="${id}" data-col="B" step="1" min="0" max="10000" inputmode="numeric" /></td>
+    <td class='col-C'></td>
+    <td class='col-D'><select class="cell-select" data-id="${id}" data-col="D">${OPT_D.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></td>
+    <td class='col-J'><select class="cell-select" data-id="${id}" data-col="J">${OPT_J.map(o=>`<option value="${o}">${o}</option>`).join('')}</select></td>
+    <td class='col-K'></td>
+    <td class='col-action'><button class="del-btn" data-id="${id}">刪除列</button></td>`;
+  return tr;
+}
+
+function recalcRow(id) {
+  const a = document.querySelector(`input[data-id='${id}'][data-col='A']`);
+  const b = document.querySelector(`input[data-id='${id}'][data-col='B']`);
+  const d = document.querySelector(`select[data-id='${id}'][data-col='D']`);
+  const j = document.querySelector(`select[data-id='${id}'][data-col='J']`);
+  if (a) a.value = clampInt(a.value,0,10000); if (b) b.value = clampInt(b.value,0,10000);
+  const av = parseInt(a?.value||'NaN'); const bv = parseInt(b?.value||'NaN'); const diff = (!Number.isNaN(av)&&!Number.isNaN(bv))? Math.abs(av-bv): NaN;
+  const cCell = document.querySelector(`tr[data-id='${id}'] .col-C`); const kCell = document.querySelector(`tr[data-id='${id}'] .col-K`);
+  cCell.textContent = Number.isNaN(diff)? '' : String(diff);
+  const base = baseScore(d?.value, diff);
+  if (Number.isNaN(base)) { kCell.innerHTML = ''; } else { const mul = MULTIPLIER[j?.value] ?? 1; const k = (base * mul).toFixed(1); kCell.innerHTML = `<span class='k-badge'>${k}</span>`; }
+  updateTotal();
+}
+
+function addRow() { const tbody = document.getElementById('tbody'); const tr = makeRow(nextId++); tbody.appendChild(tr); }
+
+document.addEventListener('DOMContentLoaded',()=>{ for(let i=0;i<5;i++) addRow(); updateTotal(); });
+
+document.addEventListener('input',(e)=>{ const el = e.target; if(el.classList.contains('cell-input')) { const id = el.dataset.id; recalcRow(id); } });
+
+document.addEventListener('change',(e)=>{ const el = e.target; if(el.classList.contains('cell-select')) { const id = el.dataset.id; recalcRow(id); } });
+
+document.addEventListener('click',(e)=>{ const el = e.target; if(el.classList.contains('del-btn')) { const id = el.dataset.id; const tr = document.querySelector(`tr[data-id='${id}']`); tr?.remove(); updateTotal(); } });
+</script>
+</body>
+</html>
